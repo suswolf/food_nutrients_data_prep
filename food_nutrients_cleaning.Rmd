@@ -1,0 +1,124 @@
+---
+title: "Food Nutrients cleaning and proccessing for EDA"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Introduction
+For fitness people, people who like working out, or simply people who care about their health, having a fast and reliable source of the nutritional facts of the more common foods is pretty convenient, also it could be a great tool for doctors to recommend for their patients. This is why I decided to make these visualizations to compare some of the best foods for losing or gaining weight and muscle mass.
+
+In this case, the data set is [Nutritional Facts for most common foods](https://www.kaggle.com/datasets/niharika41298/nutrition-details-for-most-common-foods/data) from Niharika Pandit, that can be found on Kaggle. At the same time, this data set refers to the Wikipedia page [Table of food nutrients](https://en.wikipedia.org/wiki/Table_of_food_nutrients). The data set is from four years ago, but food's nutritional facts barely change over time.
+
+## Setting up the environment
+We load the 'tidyverse' metapackage for the most useful functions for data analysis, and load the data set we are going to work with.
+
+```{r}
+library(tidyverse) # metapackage of all tidyverse packages, for data analysis
+library(skimr)
+
+food_facts = read_csv("C:/Users/Jesús/Desktop/Excel learning/Google Data Analitics/Google Analytics Case Study/nutrients_csvfile.csv")
+```
+
+## First look at the Data set
+With the data set loaded we can observe some summary data about it:
+
+```{r}
+head(food_facts, 10)
+```
+
+```{r}
+glimpse(food_facts)
+```
+
+## Cleaning and manipulation
+We can see that some of the variables are parsed as character because it has a 't' in some rows instead of numbers. According to the Wikipedia page [Table of food nutrients](https://en.wikipedia.org/wiki/Table_of_food_nutrients), this 't' refers to a trace amount of the nutrient present in the food.
+
+Therefore we will change this to the number '0.001'.
+
+```{r}
+food_facts <- drop_na(food_facts)
+
+food_facts[food_facts == "t"] <- "0.001"
+```
+
+Now we can convert our columns from character to numeric:
+
+```{r}
+food_facts <- food_facts %>% 
+  mutate(Calories=as.numeric(gsub(",", "", Calories)), Protein=as.numeric(Protein), Fat=as.numeric(Fat), Sat.Fat=as.numeric(Sat.Fat), Fiber=as.numeric(gsub(",", "", Fiber)), Carbs=as.numeric(Carbs))
+```
+There are still some NA in the data set so we will get rid of them. Those NA are due to mistakes in data entry.
+
+```{r}
+food_facts <- drop_na(food_facts)
+
+head(food_facts)
+```
+
+## Data preparation for analysis
+OK, now our data set is ready to work with. We can also see that the Measure column is unnecessary, since we will be working only with grams to be more precise.
+
+```{r}
+food_facts <- food_facts %>% 
+  select(-Measure)
+```
+
+### Metric of data per 100 grams
+We want all our data to be in the same order of 100 grams so we need to make some calculations in order to do this.
+
+```{r}
+food_facts <- food_facts %>% 
+  mutate(Calories=Calories/Grams*100, Protein=Protein/Grams*100, Fat=Fat/Grams*100, Sat.Fat=Sat.Fat/Grams*100, Fiber=Fiber/Grams*100, Carbs=Carbs/Grams*100)
+
+food_facts <- food_facts %>% 
+  mutate(Grams = 100)
+```
+
+If we arrange the data per grams of protein we can see some problematic guys:
+
+```{r}
+arrange(food_facts, desc(Protein))
+```
+There cannot be more than 100 grams of protein, carbs or anything else, so we will need to get rid of these entries.
+
+```{r}
+food_facts <- food_facts %>% 
+  filter(Grams >= Protein+Carbs+Fat)
+```
+
+```{r}
+head(food_facts)
+```
+We are going to do another test to see if there is still any duplicate value.
+
+```{r}
+anyDuplicated(food_facts)
+```
+### Correcting categories for analysis
+Let's see what we have in the Category column
+
+```{r}
+unique(food_facts$Category)
+```
+We want just one category for fruits and vegetables, so we will need to change the name of these categories.
+
+```{r}
+food_facts$Category[food_facts$Category == "Vegetables A-E"] <- "Vegetables"
+food_facts$Category[food_facts$Category == "Vegetables F-P"] <- "Vegetables"
+food_facts$Category[food_facts$Category == "Vegetables R-Z"] <- "Vegetables"
+
+food_facts$Category[food_facts$Category == "Fruits A-F"] <- "Fruits"
+food_facts$Category[food_facts$Category == "Fruits G-P"] <- "Fruits"
+food_facts$Category[food_facts$Category == "Fruits R-Z"] <- "Fruits"
+
+unique(food_facts$Category)
+```
+Now we have our data ready to make our analysis and plotting. I will save the outcome data set into a csv for further working in Tableau, Spreadsheets and another R Markdown.
+
+```{r}
+write_csv(food_facts, "food_facts.csv")
+```
+
+
+
